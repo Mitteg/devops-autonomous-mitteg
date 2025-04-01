@@ -1,0 +1,32 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Déclenche le CD quand on pousse sur main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v3
+
+      - name: Installer Helm
+        run: |
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Configurer kubectl
+        run: |
+          echo "${{ secrets.KUBECONFIG }}" | base64 --decode > kubeconfig.yaml
+          export KUBECONFIG=kubeconfig.yaml
+          kubectl get nodes  # Vérifie la connexion avec le cluster
+
+      - name: Déployer avec Helm
+        run: |
+          helm upgrade --install mon-app ./helm-chart --namespace default --set image.repository=${{ secrets.DOCKER_USERNAME }}/mon-app --set image.tag=latest
+
+      - name: Vérifier que l'application tourne
+        run: |
+          kubectl get pods -n default
